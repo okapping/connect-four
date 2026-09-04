@@ -1,0 +1,8 @@
+bin/
+lib/
+pyvenv.cfg
+.venv
+*.pyc
+dist
+*.spec
+__pycache__/
