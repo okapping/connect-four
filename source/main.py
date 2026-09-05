@@ -1,4 +1,5 @@
 import pyxel
+import random
 
 from cell import Cell
 from constants import *
@@ -16,7 +17,9 @@ COL_CNT = 7 #　横7マス
 BASE_X = 24
 BASE_Y = 32
 
+MARGIN = 4
 
+RELOAD_BTN = (16, 16)
 
 
 class Game():
@@ -30,9 +33,16 @@ class Game():
         
         self.scene = None
 
+        # タイトル画面
+        self.falling_pieces = []
+        self.msg_y = 100
+        self.msg_dy = -0.3
+        # プレイ画面
         self.cells = [[None]*COL_CNT for _ in range(ROW_CNT)]  # リストの初期化 6行7列のNone
         self.player = PLAYER1
         self.result = None
+
+        self.reload_btn_pos = (pyxel.width-(16+MARGIN), MARGIN, 16, 16)
         
         self.debug = 1
 
@@ -58,9 +68,36 @@ class Game():
                 return True
         return False
 
+    def update_title_effect(self):
+        ##### 背景のコマ
+        # コマを追加
+        if pyxel.frame_count / 10 % 2 == 0:
+            self.falling_pieces.append(
+                (
+                    16 * pyxel.rndi(0, pyxel.width // 16),
+                    -16,
+                    random.choice([PLAYER1, PLAYER2])
+                )
+            )
+        # 下へ落下させる
+        for i, piece in enumerate(self.falling_pieces):
+            x, y, player = piece
+            self.falling_pieces[i] = (x, y+3, player)
+        
+        ##### クリックでスタートのバウンズ
+        self.msg_y += self.msg_dy
+        self.msg_dy += 0.02
+        if self.msg_y > 100:
+            # self.msg_y = 100
+            self.msg_dy = -0.3
+
+
     def update_scene_title(self):
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             self.change_scene(SCENE_SELECT)
+        
+        self.update_title_effect()
+
     def update_scene_select(self):
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             self.change_scene(SCENE_PLAY)
@@ -106,25 +143,42 @@ class Game():
         cells = self.cells
         # 横の確認
         for row in range(ROW_CNT):
-            for i in range(COL_CNT-3):
-                if any(cells[row][i+j] is None for j in range(4)):
+            for col in range(COL_CNT-3):
+                if any(cells[row][col+i] is None for i in range(4)):
                     continue
 
-                if all(cells[row][i+j].player == self.player for j in range(4)):
+                if all(cells[row][col+i].player == self.player for i in range(4)):
                     self.result = self.player
                     return True
         # 縦の確認
         for col in range(COL_CNT):
-            for i in range(ROW_CNT-3):
-                if any(cells[i+j][col] is None for j in range(4)):
+            for row in range(ROW_CNT-3):
+                if any(cells[row+i][col] is None for i in range(4)):
                     continue
 
-                if all(cells[i+j][col].player == self.player for j in range(4)):
+                if all(cells[row+i][col].player == self.player for i in range(4)):
                     self.result = self.player
                     return True
 
         # 斜め(＼)の確認
+        for row in range(ROW_CNT-3):
+            for col in range(COL_CNT-3):
+                if any(cells[row+i][col+i] is None for i in range(4)):
+                    continue
+
+                if all(cells[row+i][col+i].player == self.player for i in range(4)):
+                    self.result = self.player
+                    return True
+
         # 斜め(／)の確認
+        for row in range(ROW_CNT-3):
+            for col in range(COL_CNT-3):
+                if any(cells[row+(3-i)][col+i] is None for i in range(4)):
+                    continue
+
+                if all(cells[row+(3-i)][col+i].player == self.player for i in range(4)):
+                    self.result = self.player
+                    return True
 
     def main_game_logic(self, col):
         """
@@ -146,9 +200,17 @@ class Game():
             pass
         else:
             self.change_player()
+    def game_init(self):
+        self.cells = [[None]*COL_CNT for _ in range(ROW_CNT)]  # リストの初期化 6行7列のNone
+        self.player = PLAYER1
+        self.result = None
 
     def update_scene_play(self):
-
+        # リロードボタンをクリックした場合
+        if self.is_click_inside_rect(*self.reload_btn_pos):
+            self.game_init()
+        
+        # 
         # size = 16
         for i in range(COL_CNT):
             x = BASE_X+CELL_SIZE*i
@@ -176,13 +238,27 @@ class Game():
             self.update_scene_play()
 
     def draw_scene_title(self):
+        pyxel.cls(0)
+        # 落ちてくるコマ
+        for piece in self.falling_pieces:
+            x, y, player = piece
+            if player == PLAYER1:
+                u, v = 32, 0
+            elif player == PLAYER2:
+                u, v = 48, 0
+            pyxel.blt(x, y, 0, u, v, 16, 16, 0)
+        # 背景
+        for i in range(pyxel.width // 16 + 1):
+            for j in range(pyxel.height // 16 + 1):
+                pyxel.blt(16*i, 16*j, 0, 0, 16, 16, 16, 0)
+
         w = 140
         h = 60
         x = pyxel.width / 2 - w / 2
         # y = (pyxel.height / 2 - h / 2) - 20
         y = 20
         # pyxel.rect(x, y, w, h, 2)
-        pyxel.blt(x, y, 1, 0, 0, w, h)
+        pyxel.blt(x, y, 1, 0, 0, w, h, 2)
 
         s = "とっても面白い"
         x = pyxel.width / 2 - self.font.text_width(s) / 2
@@ -191,8 +267,8 @@ class Game():
 
         s = "クリックでスタート！"
         x = pyxel.width / 2 - self.font.text_width(s) / 2
-        y = 100
-        pyxel.text(x, y, s, 7, self.font)
+        # y = 100
+        pyxel.text(x, self.msg_y, s, 7, self.font)
         if self.debug:
             pyxel.text(0, 0, "TITLE", 7)
     def draw_scene_select(self):
@@ -203,6 +279,9 @@ class Game():
             pyxel.text(0, 0, "PLAY", 7)
             pyxel.text(0, 10, f"result: {self.result}", 7)
             
+        # リロードボタン
+        x, y, w, h = self.reload_btn_pos
+        pyxel.blt(x, y, 0, *RELOAD_BTN, w, h, 0)
 
         for rows in self.cells:
             for cell in rows:
@@ -236,7 +315,7 @@ class Game():
         # for i in range(6):
         #     for j in range(7):
     def draw(self):
-        pyxel.cls(6)
+        pyxel.cls(0)
 
         if self.scene == SCENE_TITLE:
             self.draw_scene_title()
