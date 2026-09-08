@@ -46,14 +46,16 @@ class Game():
         self.player = PLAYER1
         self.result = None
         self.animation_pieces = []
+        self.result_y = -20
 
         self.reload_btn_pos = (pyxel.width-(16+MARGIN), MARGIN, 16, 16)
         
-        self.debug = 1
+        self.debug = 0
 
 
         # 初期化
         self.change_scene(SCENE_TITLE)
+        # self.change_scene(SCENE_PLAY)
 
         pyxel.run(self.update, self.draw)
 
@@ -244,6 +246,7 @@ class Game():
         self.cells = [[None]*COL_CNT for _ in range(ROW_CNT)]  # リストの初期化 6行7列のNone
         self.player = PLAYER1
         self.result = None
+        self.result_y = -20
 
     def update_pieces_fall_animation(self):
         """
@@ -262,6 +265,9 @@ class Game():
         if self.is_click_inside_rect(*self.reload_btn_pos):
             self.animation_pieces = self.cells.copy()
             self.game_init()
+
+        if self.result is not None:
+            self.result_y = min(self.result_y+8, 50)
         
         # 
         # size = 16
@@ -346,13 +352,20 @@ class Game():
         if self.debug:
             pyxel.text(0, 0, "SELECT", 7)
     def draw_scene_play(self):
-        if self.debug:
-            pyxel.text(0, 0, "PLAY", 7)
-            pyxel.text(0, 10, f"result: {self.result}", 7)
+        # if self.debug:
+        #     pyxel.text(0, 0, "PLAY", 7)
+        #     pyxel.text(0, 10, f"result: {self.result}", 7)
             
         # リロードボタン
         x, y, w, h = self.reload_btn_pos
         pyxel.blt(x, y, 0, *RELOAD_BTN, w, h, 0)
+
+        # のターン
+        if self.player == PLAYER1:
+            pyxel.blt(MARGIN, MARGIN, 0, 32, 0, 16, 16, 0)
+        elif self.player == PLAYER2:
+            pyxel.blt(MARGIN, MARGIN, 0, 48, 0, 16, 16, 0)
+        pyxel.text(MARGIN+16, MARGIN+3, "のターン", 7, self.font)
 
         # 落ちていくコマ一覧
         for row in self.animation_pieces:
@@ -398,7 +411,25 @@ class Game():
                     continue
                 cell.draw_aligned_effect()
                 
+        # 結果画面
+        w = 100
+        h = 20
+        x = pyxel.width/2 - w/2
+        y = self.result_y
+        pyxel.rect(x, y, w, h, 10)
+        if self.result == PLAYER1:
+            pyxel.blt(x, y, 0, 32, 0, 16, 16, 0)
+            pyxel.text(x+16, y+3, "の勝ち", 2, self.font)
+        elif self.result == PLAYER2:
+            pyxel.blt(x, y, 0, 48, 0, 16, 16, 0)
+            pyxel.text(x+16, y+3, "の勝ち", 2, self.font)
         
+        # if self.player == PLAYER1:
+        #     pyxel.blt(MARGIN, MARGIN, 0, 32, 0, 16, 16, 0)
+        # elif self.player == PLAYER2:
+        #     pyxel.blt(MARGIN, MARGIN, 0, 48, 0, 16, 16, 0)
+        # pyxel.text(MARGIN+16, MARGIN+3, "のターン", 7, self.font)
+
         # for i in range(6):
         #     for j in range(7):
     def draw(self):
