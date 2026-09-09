@@ -105,7 +105,8 @@ class Game():
     def update_scene_title(self):
         now = pyxel.frame_count
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-            self.title_clicked = now
+            if self.title_clicked is None:
+                self.title_clicked = now
             # self.change_scene(SCENE_SELECT)
         
         if self.title_clicked is not None:
@@ -138,7 +139,7 @@ class Game():
             # 空白セルに駒を置く
             if self.cells[row][col] is None:
                 x = BASE_X + CELL_SIZE*col
-                y = BASE_Y - CELL_SIZE
+                y = -CELL_SIZE
                 tx = BASE_X + CELL_SIZE*col
                 ty = BASE_Y + CELL_SIZE*row
                 self.cells[row][col] = Piece(
@@ -267,7 +268,7 @@ class Game():
             self.game_init()
 
         if self.result is not None:
-            self.result_y = min(self.result_y+8, 50)
+            self.result_y = min(self.result_y+8, 10)
         
         # 
         # size = 16
@@ -295,6 +296,15 @@ class Game():
             self.update_scene_select()
         elif self.scene == SCENE_PLAY:
             self.update_scene_play()
+
+    def shadow_pal(self):
+        """
+        全部の色を紺にする
+        """
+        for col in range(16):
+            pyxel.pal(col, 1)
+    def shadow_pal_reset(self):
+        pyxel.pal()
 
     def draw_scene_title(self):
         pyxel.cls(0)
@@ -335,7 +345,6 @@ class Game():
         y = 13
         for i in range(1, -1, -1):
             pyxel.text(x+i, y+i, s, 0 if i else 7, self.font)
-        # pyxel.text(x, y, s, 7, self.font)
 
         s = "クリックでスタート！"
         x = pyxel.width / 2 - self.font.text_width(s) / 2
@@ -360,12 +369,32 @@ class Game():
         x, y, w, h = self.reload_btn_pos
         pyxel.blt(x, y, 0, *RELOAD_BTN, w, h, 0)
 
+        pattern = [0, 1, 0, -1]
+        x = MARGIN
+        y = MARGIN + pattern[pyxel.frame_count//20 % 4]
         # のターン
         if self.player == PLAYER1:
-            pyxel.blt(MARGIN, MARGIN, 0, 32, 0, 16, 16, 0)
+            u, v = 32, 0
         elif self.player == PLAYER2:
-            pyxel.blt(MARGIN, MARGIN, 0, 48, 0, 16, 16, 0)
-        pyxel.text(MARGIN+16, MARGIN+3, "のターン", 7, self.font)
+            u, v = 48, 0
+        pyxel.blt(x, y, 0, u, v, 16, 16, 0)
+
+        for i in range(1, -1, -1):
+            pyxel.text(x+16+i, y+3+i, "のターン", 1 if i else 7, self.font)
+
+
+        # 奥側の枠
+        for i, row in enumerate(self.cells):
+            for j, cell in enumerate(row):
+                x = BASE_X + (CELL_SIZE*j)
+                y = BASE_Y + (CELL_SIZE*i)
+                self.shadow_pal()
+                pyxel.blt(x+2, y+2, 0, 16, 0, 16, 16, 10)
+                self.shadow_pal_reset()
+                # pyxel.blt(x, y, 0, 16, 0, 16, 16, 10)
+                # 空の場合はスキップ
+                if cell is None:
+                    continue
 
         # 落ちていくコマ一覧
         for row in self.animation_pieces:
@@ -381,27 +410,60 @@ class Game():
                     continue
                 cell.draw()
 
-        # 枠の枠
-        # # 上の横
-        # x = BASE_X-8
-        # y = BASE_Y-8
-        # for i in range((COL_CNT+1)*2):
-        #     if i % 2 == 0:
-        #         u, v = 24, 16
-        #     else:
-        #         u, v = 16, 16
-        #     pyxel.blt(x, y, 0, u, v, 8, 8)
-        #     x += 8
         # 枠
         for i, row in enumerate(self.cells):
             for j, cell in enumerate(row):
-                # 枠
                 x = BASE_X + (CELL_SIZE*j)
                 y = BASE_Y + (CELL_SIZE*i)
+                # self.shadow_pal()
+                # pyxel.blt(x+2, y+2, 0, 16, 0, 16, 16, 10)
+                # self.shadow_pal_reset()
                 pyxel.blt(x, y, 0, 16, 0, 16, 16, 10)
                 # 空の場合はスキップ
                 if cell is None:
                     continue
+
+        # 枠の枠
+        # 上の辺
+        x = BASE_X
+        y = BASE_Y-8
+        u, v = 0, 32
+        for i in range((COL_CNT)*2):
+            pyxel.blt(x, y, 0, u, v, 8, 8)
+            x += 8
+        # 下の辺
+        x = BASE_X
+        y = BASE_Y+ROW_CNT*CELL_SIZE
+        for i in range((COL_CNT)*2):
+            pyxel.blt(x, y, 0, u, v, 8, 8)
+            x += 8
+        # 左の辺
+        x = BASE_X-8
+        y = BASE_Y
+        u, v = 0, 40
+        for i in range((ROW_CNT)*2):
+            pyxel.blt(x, y, 0, u, v, 8, 8)
+            y += 8
+        # 右の辺
+        x = BASE_X+COL_CNT*CELL_SIZE
+        y = BASE_Y
+        for i in range((ROW_CNT)*2):
+            pyxel.blt(x, y, 0, u, v, 8, 8)
+            y += 8
+        # 四角
+        corners = [
+            (BASE_X - 8, BASE_Y - 8, 8, 32),                                      # 左上
+            (BASE_X + COL_CNT * CELL_SIZE, BASE_Y - 8, 16, 32),                    # 右上
+            (BASE_X + COL_CNT * CELL_SIZE, BASE_Y + ROW_CNT * CELL_SIZE, 16, 40),  # 右下
+            (BASE_X - 8, BASE_Y + ROW_CNT * CELL_SIZE, 8, 40),                    # 左下
+        ]
+        for i, (x, y, u, v) in enumerate(corners):
+             pyxel.blt(x, y, 0, u, v, 8, 8, 0)
+
+        # ふちの影
+        x, y = BASE_X, BASE_Y
+        pyxel.line(x, y, x+CELL_SIZE*COL_CNT-1, y, 1)
+        pyxel.line(x, y, x, y+CELL_SIZE*ROW_CNT-1, 1)
 
         
         # コマのエフェクト一覧
@@ -412,17 +474,22 @@ class Game():
                 cell.draw_aligned_effect()
                 
         # 結果画面
-        w = 100
+        w = 60
         h = 20
         x = pyxel.width/2 - w/2
         y = self.result_y
-        pyxel.rect(x, y, w, h, 10)
+        pyxel.rect(x, y, w, h, 13)
+        y = self.result_y+2
         if self.result == PLAYER1:
             pyxel.blt(x, y, 0, 32, 0, 16, 16, 0)
             pyxel.text(x+16, y+3, "の勝ち", 2, self.font)
         elif self.result == PLAYER2:
             pyxel.blt(x, y, 0, 48, 0, 16, 16, 0)
             pyxel.text(x+16, y+3, "の勝ち", 2, self.font)
+        elif self.result == DRAW:
+            msg = "引き分け"
+            x = pyxel.width / 2 - self.font.text_width(msg)/2
+            pyxel.text(x, y+3, msg, 2, self.font)
         
         # if self.player == PLAYER1:
         #     pyxel.blt(MARGIN, MARGIN, 0, 32, 0, 16, 16, 0)
