@@ -15,18 +15,20 @@ COL_CNT = 7 #　横7マス
 # PLAYER1, PLAYER2 = 0, 1
 
 BASE_X = 24
-BASE_Y = 32
+BASE_Y = 36
+# BASE_Y = 32
+# BASE_Y = 48
 
 MARGIN = 4
 
 RELOAD_BTN = (16, 16)
+TITLE_BTN = (32, 16)
 
 
 class Game():
     def __init__(self):
-        pyxel.init(width=160, height=140 ,title="コネクトフォー")
-        # pyxel.init(width=128, height=112 ,title="rhythm action RPG")
-        # pyxel.init(width=256, height=224 ,title="rhythm action RPG")
+        pyxel.init(width=160, height=144 ,title="コネクトフォー")
+        # pyxel.init(width=160, height=160 ,title="コネクトフォー")
         self.font = pyxel.Font("assets/YokohamaDotsJPN.otf")#
         pyxel.mouse(True)
         pyxel.load("assets/asset.pyxres")
@@ -49,6 +51,7 @@ class Game():
         self.result_y = -20
 
         self.reload_btn_pos = (pyxel.width-(16+MARGIN), MARGIN, 16, 16)
+        self.title_btn_pos = (pyxel.width-(16+MARGIN)*2, MARGIN, 16, 16)
         
         self.debug = 0
 
@@ -61,13 +64,23 @@ class Game():
 
     def change_scene(self, scene):
         self.scene = scene
+
+    def title_init(self):
+        self.msg_y = 100
+        self.msg_dy = -0.3
+        self.title_clicked = None
+        self.title_alpha = 1
+        self.bg_left_x = 0
+        self.bg_right_x = pyxel.width // 2
+
+
     def is_click_inside_rect(self, x, y, w, h):
         """
         四角形の中をクリックしたかどうか判定する
         x, y: 左上の地点
         w, h: 幅と高さ（地点を含む）
         """
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+        if pyxel.btnr(pyxel.MOUSE_BUTTON_LEFT):
             if (
                 x < pyxel.mouse_x < x+w-1
                 and y < pyxel.mouse_y < y+h-1
@@ -78,7 +91,7 @@ class Game():
     def update_title_effect(self):
         ##### 背景のコマ
         # コマを追加
-        if pyxel.frame_count / 10 % 2 == 0:
+        if pyxel.frame_count / 6 % 2 == 0:
             self.falling_pieces.append(
                 (
                     16 * pyxel.rndi(0, pyxel.width // 16 // 2 - 1),
@@ -104,7 +117,8 @@ class Game():
 
     def update_scene_title(self):
         now = pyxel.frame_count
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+        # if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+        if self.is_click_inside_rect(0, 0, pyxel.width, pyxel.height):
             if self.title_clicked is None:
                 self.title_clicked = now
             # self.change_scene(SCENE_SELECT)
@@ -123,7 +137,9 @@ class Game():
         self.update_title_effect()
 
     def update_scene_select(self):
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+        if self.is_click_inside_rect(0, 0, pyxel.width, pyxel.height):
+        # if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+            self.game_init()
             self.change_scene(SCENE_PLAY)
     
     def put_piece(self, col):
@@ -267,6 +283,10 @@ class Game():
             self.animation_pieces = self.cells.copy()
             self.game_init()
 
+        if self.is_click_inside_rect(*self.title_btn_pos):
+            self.title_init()
+            self.change_scene(SCENE_TITLE)
+
         if self.result is not None:
             self.result_y = min(self.result_y+8, 10)
         
@@ -332,6 +352,7 @@ class Game():
                 pyxel.blt(self.bg_right_x+16*i, 16*j, 0, 0, 16, 16, 16, 0)
 
         pyxel.dither(self.title_alpha)
+        # タイトル（コネクトフォー）
         w = 140
         h = 60
         x = pyxel.width / 2 - w / 2
@@ -340,6 +361,20 @@ class Game():
         # pyxel.rect(x, y, w, h, 2)
         pyxel.blt(x, y, 1, 0, 0, w, h, 2)
 
+        # つた(縦)
+        for i in range(pyxel.height//CELL_SIZE):
+            x, y = 0, 0+(CELL_SIZE*i)
+            pyxel.blt(x, y, 0, 0, 64, CELL_SIZE, CELL_SIZE, 0)
+            x, y = pyxel.width - CELL_SIZE, 0+(CELL_SIZE*i)
+            pyxel.blt(x, y, 0, 0, 64, CELL_SIZE, CELL_SIZE, 0)
+        # つた(横)
+        for i in range(pyxel.width//CELL_SIZE):
+            x, y = 0+(CELL_SIZE*i), 0
+            pyxel.blt(x, y, 0, 16, 64, CELL_SIZE, CELL_SIZE, 0)
+            x, y = 0+(CELL_SIZE*i), pyxel.height - CELL_SIZE
+            pyxel.blt(x, y, 0, 16, 64, CELL_SIZE, CELL_SIZE, 0)
+
+        # 文字
         s = "おとしてそろえて"
         x = pyxel.width / 2 - self.font.text_width(s) / 2
         y = 13
@@ -368,6 +403,9 @@ class Game():
         # リロードボタン
         x, y, w, h = self.reload_btn_pos
         pyxel.blt(x, y, 0, *RELOAD_BTN, w, h, 0)
+
+        x, y, w, h = self.title_btn_pos
+        pyxel.blt(x, y, 0, *TITLE_BTN, w, h, 0)
 
         pattern = [0, 1, 0, -1]
         x = MARGIN
